@@ -44,6 +44,7 @@ class Post(models.Model):
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
+        related_name='posts',
         verbose_name='Автор',
         limit_choices_to={'is_staff': True})
     likes = models.ManyToManyField(
