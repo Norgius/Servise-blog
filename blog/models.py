@@ -7,8 +7,31 @@ from django.db.models import Count
 class PostQuerySet(models.QuerySet):
 
     def year(self, year):
-        posts_at_year = self.filter(published_at__year=year).order_by('published_at')
+        posts_at_year = self.filter(
+            published_at__year=year).order_by('published_at')
         return posts_at_year
+
+    def popular(self):
+        most_popular_posts = self.annotate(
+            likes_count=Count('likes')).order_by('-likes_count')
+        return most_popular_posts
+    
+    def fetch_with_comments_count(self):
+        """ При использовании одного annotate() сложность запроса равна O^1,
+        но уже при 2-х annotate() в запросе, она возрастает до O^2, именно
+        поэтому в запросе annotate() можно использовать только один раз,
+        никак не два или более. Подобная функция необходима, чтобы избежать
+        потерь времени и ресурсов при использовании 2-х annotate().
+        """
+        most_popular_posts_id = [post.id for post in self]
+        posts_with_comments = Post.objects.filter(
+            id__in=most_popular_posts_id
+            ).annotate(comments_count=Count('comments'))
+        ids_and_comments = posts_with_comments.values_list('id', 'comments_count')
+        count_for_id = dict(ids_and_comments)
+        for post in self:
+            post.comments_count = count_for_id[post.id]
+        return self
 
 
 class Post(models.Model):
